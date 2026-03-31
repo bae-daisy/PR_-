@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PR 데이터 변환</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
+<style>
+:root {
+  --blue: #3182f6; --blue-dark: #1b64da; --blue-light: #e8f3ff;
+  --gray-50: #f9fafb; --gray-100: #f2f4f6; --gray-200: #e5e8eb;
+  --gray-400: #b0b8c1; --gray-500: #8b95a1; --gray-600: #6b7684;
+  --gray-800: #333d4b; --gray-900: #191f28;
+  --red: #f04452; --yellow: #f59f00; --radius: 12px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Pretendard', -apple-system, sans-serif;
+  background: var(--gray-50); color: var(--gray-900);
+  min-height: 100vh; -webkit-font-smoothing: antialiased;
+}
+.container { max-width: 680px; margin: 0 auto; padding: 48px 20px 80px; }
+.logo { font-size: 15px; font-weight: 600; color: var(--blue); margin-bottom: 32px; letter-spacing: -0.3px; text-align: center; }
+h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 6px; color: var(--gray-900); text-align: center; }
+.subtitle { color: var(--gray-500); font-size: 15px; margin-bottom: 32px; font-weight: 400; text-align: center; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="logo">PR 데이터 변환</div>
+  <h1>CSV를 엑셀로 변환하세요</h1>
+  <p class="subtitle">요청사항과 CSV를 넣으면 양식에 맞는 엑셀이 만들어져요</p>
+
+  <div class="alert-bar" id="alert">
+    <span id="alert-icon">⚠️</span>
+    <span id="alert-msg"></span>
+    <button class="alert-close" onclick="hideAlert()">&times;</button>
+  </div>
+
+  <!-- 입력 폼 -->
+  <div class="card" id="form-card">
+    <form id="form" enctype="multipart/form-data">
+      <div class="field">
+        <label for="media">매체명</label>
+        <input type="text" id="media" name="media_name" placeholder="예: 전자신문" required>
+      </div>
+      <div class="field">
+        <label for="req">요청사항</label>
+        <textarea id="req" name="request_text" placeholder="기자 요청 원문을 붙여넣으세요 (참고용)"></textarea>
+        <p class="hint">지표·앱·기간·연령대는 CSV에서 자동 감지돼요</p>
+      </div>
+      <div class="field">
+        <label>CSV 파일</label>
+        <div class="dropzone" id="dropzone">
+          <div class="drop-icon">📁</div>
+          <p class="drop-main">파일을 드래그하거나 클릭하여 선택</p>
+          <p class="drop-sub">CSV 파일만 가능해요</p>
+          <p class="file-list" id="file-list"></p>
+          <input type="file" name="csv_files" multiple accept=".csv" id="file-input">
+        </div>
+      </div>
+      <button type="submit" class="btn-primary" id="btn">변환하기</button>
+    </form>
+  </div>
+
+  <!-- 미리보기 -->
+  <div class="card" id="preview-card" style="display:none">
+    <div class="preview-header">
+      <h2 id="preview-title">변환 결과</h2>
+      <div class="preview-actions">
+        <button class="btn-ghost" onclick="resetForm()">다시 하기</button>
+        <button class="btn-primary btn-sm" id="download-btn">다운로드</button>
+      </div>
+    </div>
+    <div id="preview-body"></div>
+  </div>
+</div>
+
+<style>
+/* 알림 */
+.alert-bar {
+  display: none; padding: 14px 40px 14px 16px; border-radius: var(--radius);
+  margin-bottom: 16px; font-size: 14px; line-height: 1.5; position: relative;
+  font-weight: 500;
+}
+.alert-bar.warn { background: #fffbe6; color: #8a6d00; border: 1px solid #ffe066; }
+.alert-bar.error { background: #fff0f0; color: var(--red); border: 1px solid #ffc9c9; }
+.alert-close {
+  position: absolute; top: 10px; right: 12px; background: none; border: none;
+  font-size: 18px; cursor: pointer; color: inherit; opacity: 0.5; line-height: 1;
+}
+#alert-icon { margin-right: 6px; }
+
+/* 카드 */
+.card {
+  background: #fff; border-radius: var(--radius); padding: 28px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03);
+  margin-bottom: 20px;
+}
+
+/* 폼 */
+label { display: block; font-size: 13px; font-weight: 600; color: var(--gray-600); margin-bottom: 8px; }
+.field + .field { margin-top: 22px; }
+input[type="text"], textarea {
+  width: 100%; padding: 12px 14px; border: 1.5px solid var(--gray-200); border-radius: 10px;
+  font-size: 15px; font-family: inherit; transition: all 0.15s; background: var(--gray-50);
+  color: var(--gray-900);
+}
+input:focus, textarea:focus { outline: none; border-color: var(--blue); background: #fff; box-shadow: 0 0 0 3px var(--blue-light); }
+textarea { resize: vertical; min-height: 80px; }
+.hint { font-size: 12px; color: var(--gray-400); margin-top: 6px; }
+
+/* 드롭존 */
+.dropzone {
+  border: 2px dashed var(--gray-200); border-radius: 10px; padding: 28px;
+  text-align: center; cursor: pointer; transition: all 0.2s; background: var(--gray-50);
+}
+.dropzone:hover, .dropzone.dragover { border-color: var(--blue); background: var(--blue-light); }
+.drop-icon { font-size: 28px; margin-bottom: 8px; }
+.drop-main { color: var(--gray-600); font-size: 14px; font-weight: 500; }
+.drop-sub { color: var(--gray-400); font-size: 12px; margin-top: 4px; }
+.file-list { color: var(--blue); font-weight: 600; font-size: 13px; margin-top: 10px; }
+#file-input { display: none; }
+</style>
+
+<style>
+/* 버튼 */
+.btn-primary {
+  display: block; width: 100%; padding: 14px; margin-top: 24px; background: var(--blue);
+  color: #fff; border: none; border-radius: 10px; font-size: 16px; font-weight: 600;
+  cursor: pointer; transition: background 0.15s; font-family: inherit;
+}
+.btn-primary:hover { background: var(--blue-dark); }
+.btn-primary:disabled { background: var(--gray-200); color: var(--gray-400); cursor: not-allowed; }
+.btn-primary.btn-sm { width: auto; padding: 10px 20px; margin: 0; font-size: 14px; }
+.btn-ghost {
+  background: none; border: 1.5px solid var(--gray-200); border-radius: 10px;
+  padding: 10px 20px; font-size: 14px; font-weight: 600; color: var(--gray-600);
+  cursor: pointer; font-family: inherit; transition: all 0.15s;
+}
+.btn-ghost:hover { border-color: var(--gray-400); color: var(--gray-800); }
+
+/* 미리보기 */
+.preview-header {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;
+}
+.preview-header h2 { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+.preview-actions { display: flex; gap: 8px; }
+.preview-block { margin-bottom: 24px; }
+.preview-block:last-child { margin-bottom: 0; }
+.preview-label {
+  font-size: 13px; font-weight: 700; color: var(--blue); background: var(--blue-light);
+  display: inline-block; padding: 4px 12px; border-radius: 6px; margin-bottom: 10px;
+}
+.preview-table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid var(--gray-200); }
+.preview-table {
+  width: 100%; border-collapse: collapse; font-size: 13px; white-space: nowrap;
+}
+.preview-table th {
+  background: var(--gray-100); font-weight: 600; color: var(--gray-600);
+  padding: 10px 14px; text-align: center; border-bottom: 1px solid var(--gray-200);
+}
+.preview-table td {
+  padding: 9px 14px; text-align: right; border-bottom: 1px solid var(--gray-100);
+  color: var(--gray-800);
+}
+.preview-table td:first-child { text-align: center; color: var(--gray-600); font-weight: 500; }
+.preview-table tr:last-child td { border-bottom: none; }
+.preview-table tr:hover td { background: var(--blue-light); }
+.preview-more {
+  text-align: center; padding: 10px; font-size: 12px; color: var(--gray-400);
+  cursor: pointer; font-weight: 500;
+}
+.preview-more:hover { color: var(--blue); }
+</style>
+
+<script>
+let currentFile = null;
+let currentFilename = null;
+
+const zone = document.getElementById('dropzone');
+const input = document.getElementById('file-input');
+const fileList = document.getElementById('file-list');
+
+zone.addEventListener('click', (e) => { e.stopPropagation(); input.click(); });
+zone.addEventListener('dragenter', e => { e.preventDefault(); e.stopPropagation(); zone.classList.add('dragover'); });
+zone.addEventListener('dragover', e => { e.preventDefault(); e.stopPropagation(); zone.classList.add('dragover'); });
+zone.addEventListener('dragleave', e => { e.preventDefault(); e.stopPropagation(); zone.classList.remove('dragover'); });
+zone.addEventListener('drop', e => {
+  e.preventDefault(); e.stopPropagation(); zone.classList.remove('dragover');
+  const dt = new DataTransfer();
+  Array.from(e.dataTransfer.files).forEach(f => dt.items.add(f));
+  input.files = dt.files;
+  showFiles(input.files);
+});
+input.addEventListener('change', () => showFiles(input.files));
+
+// 자식 요소가 이벤트 가로채지 않도록
+zone.querySelectorAll('*').forEach(el => { el.style.pointerEvents = 'none'; });
+
+function showFiles(files) {
+  if (!files.length) { fileList.textContent = ''; return; }
+  fileList.textContent = Array.from(files).map(f => f.name).join(', ') + ' (' + files.length + '개)';
+}
+
+function showAlert(messages, type) {
+  const el = document.getElementById('alert');
+  const msg = document.getElementById('alert-msg');
+  el.className = 'alert-bar ' + type;
+  msg.innerHTML = messages.join('<br>');
+  el.style.display = 'block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function hideAlert() { document.getElementById('alert').style.display = 'none'; }
+
+function downloadBase64(b64, filename) {
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  const blob = new Blob([arr], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+function renderPreview(preview) {
+  const body = document.getElementById('preview-body');
+  body.innerHTML = '';
+  const INITIAL_ROWS = 8;
+  preview.forEach((block, bi) => {
+    const div = document.createElement('div');
+    div.className = 'preview-block';
+    let html = '<div class="preview-label">' + block.label + '</div>';
+    html += '<div class="preview-table-wrap"><table class="preview-table"><thead><tr>';
+    block.headers.forEach(h => { html += '<th>' + h + '</th>'; });
+    html += '</tr></thead><tbody>';
+    const total = block.rows.length;
+    const show = Math.min(INITIAL_ROWS, total);
+    block.rows.slice(0, show).forEach(row => {
+      html += '<tr>';
+      row.forEach(v => { html += '<td>' + v + '</td>'; });
+      html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+    if (total > INITIAL_ROWS) {
+      html += '<div class="preview-more" data-block="' + bi + '">+ ' + (total - INITIAL_ROWS) + '행 더 보기</div>';
+    }
+    div.innerHTML = html;
+    body.appendChild(div);
+  });
+  // 더보기 클릭
+  body.querySelectorAll('.preview-more').forEach(el => {
+    el.addEventListener('click', function() {
+      const bi = parseInt(this.dataset.block);
+      const block = preview[bi];
+      const tbody = this.previousElementSibling.querySelector('tbody');
+      block.rows.slice(INITIAL_ROWS).forEach(row => {
+        const tr = document.createElement('tr');
+        row.forEach(v => { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); });
+        tbody.appendChild(tr);
+      });
+      this.remove();
+    });
+  });
+}
+
+function resetForm() {
+  document.getElementById('form-card').style.display = 'block';
+  document.getElementById('preview-card').style.display = 'none';
+  hideAlert();
+  currentFile = null; currentFilename = null;
+}
+
+document.getElementById('download-btn').addEventListener('click', () => {
+  if (currentFile && currentFilename) downloadBase64(currentFile, currentFilename);
+});
+
+document.getElementById('form').addEventListener('submit', async e => {
+  e.preventDefault(); hideAlert();
+  const btn = document.getElementById('btn');
+  const fd = new FormData(e.target);
+  btn.disabled = true; btn.textContent = '변환 중...';
+  try {
+    const res = await fetch('/convert', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) {
+      const msgs = data.warnings && data.warnings.length ? data.warnings : [data.error || '오류가 발생했어요'];
+      showAlert(msgs, 'error'); return;
+    }
+    if (data.warnings && data.warnings.length) showAlert(data.warnings, 'warn');
+    currentFile = data.file; currentFilename = data.filename;
+    document.getElementById('preview-title').textContent = data.filename.replace('.xlsx', '');
+    renderPreview(data.preview);
+    document.getElementById('form-card').style.display = 'none';
+    document.getElementById('preview-card').style.display = 'block';
+  } catch { showAlert(['네트워크 오류가 발생했어요'], 'error'); }
+  finally { btn.disabled = false; btn.textContent = '변환하기'; }
+});
+</script>
+</body>
+</html>
