@@ -20,25 +20,30 @@ body {
   background: var(--gray-50); color: var(--gray-900);
   min-height: 100vh; -webkit-font-smoothing: antialiased;
 }
+
+/* 폼 모드: 좁은 컨테이너 */
 .container { max-width: 680px; margin: 0 auto; padding: 48px 20px 80px; }
 .logo { font-size: 15px; font-weight: 600; color: var(--blue); margin-bottom: 32px; letter-spacing: -0.3px; text-align: center; }
 h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 6px; color: var(--gray-900); text-align: center; }
 .subtitle { color: var(--gray-500); font-size: 15px; margin-bottom: 32px; font-weight: 400; text-align: center; }
+
+/* 2컬럼 결과 레이아웃 */
+.result-layout { display: none; padding: 32px 24px 80px; max-width: 1400px; margin: 0 auto; }
+.result-top { text-align: center; margin-bottom: 20px; }
+.result-top .logo { margin-bottom: 16px; }
 </style>
 </head>
 <body>
-<div class="container">
-  <div class="logo">PR 데이터 변환</div>
-  <h1>CSV를 엑셀로 변환하세요</h1>
-  <p class="subtitle">요청사항과 CSV를 넣으면 양식에 맞는 엑셀이 만들어져요</p>
 
+<!-- 입력 폼 -->
+<div class="container" id="form-container">
+  <div class="logo">PR 데이터 변환</div>
+  <h1>CSV를 PR 전달용 데이터로 편리하게 변환하세요</h1>
+  <p class="subtitle">요청사항과 CSV를 넣으면 양식에 맞는 엑셀이 만들어져요</p>
   <div class="alert-bar" id="alert">
-    <span id="alert-icon">⚠️</span>
-    <span id="alert-msg"></span>
+    <span id="alert-icon">⚠️</span><span id="alert-msg"></span>
     <button class="alert-close" onclick="hideAlert()">&times;</button>
   </div>
-
-  <!-- 입력 폼 -->
   <div class="card" id="form-card">
     <form id="form" enctype="multipart/form-data">
       <div class="field">
@@ -56,33 +61,60 @@ h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 6
           <div class="drop-icon">📁</div>
           <p class="drop-main">파일을 드래그하거나 클릭하여 선택</p>
           <p class="drop-sub">CSV 파일만 가능해요</p>
-          <p class="file-list" id="file-list"></p>
+          <div class="file-list" id="file-list"></div>
           <input type="file" name="csv_files" multiple accept=".csv" id="file-input">
         </div>
       </div>
       <button type="submit" class="btn-primary" id="btn">변환하기</button>
     </form>
   </div>
+</div>
 
-  <!-- 미리보기 -->
-  <div class="card" id="preview-card" style="display:none">
-    <div class="preview-header">
-      <h2 id="preview-title">변환 결과</h2>
-      <div class="preview-actions">
-        <button class="btn-ghost" onclick="resetForm()">다시 하기</button>
-        <button class="btn-primary btn-sm" id="download-btn">다운로드</button>
+<!-- 결과: 2컬럼 나란히 -->
+<div class="result-layout" id="result-layout">
+  <div class="result-top">
+    <div class="logo">PR 데이터 변환</div>
+    <!-- 매칭 말풍선 -->
+    <div class="mapping-bubble" id="mapping-card" style="display:none">
+      <div class="mapping-bubble-inner">
+        <span class="mapping-icon">🔗</span>
+        <div class="mapping-text">
+          <div class="mapping-msg">이렇게 매칭되었어요!</div>
+          <div id="mapping-body" class="mapping-body"></div>
+        </div>
+      </div>
+      <div class="mapping-bubble-arrow"></div>
+    </div>
+  </div>
+  <div class="result-header">
+    <h2 id="preview-title">변환 결과</h2>
+    <div class="result-actions">
+      <button class="btn-ghost" onclick="resetForm()">다시 하기</button>
+      <button class="btn-primary btn-sm" id="download-btn">다운로드</button>
+    </div>
+  </div>
+  <div class="result-columns">
+    <div class="result-col">
+      <div class="col-label col-label-blue">📊 변환 결과</div>
+      <div class="card" id="preview-card">
+        <div id="preview-body"></div>
       </div>
     </div>
-    <div id="preview-body"></div>
+    <div class="result-col">
+      <div class="col-label col-label-orange">📋 원본 CSV</div>
+      <div class="card" id="original-card">
+        <div id="original-body">
+          <div class="original-hint">셀 위에 커서를 올리면 원본과 비교돼요</div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
 <style>
-/* 알림 */
 .alert-bar {
   display: none; padding: 14px 40px 14px 16px; border-radius: var(--radius);
-  margin-bottom: 16px; font-size: 14px; line-height: 1.5; position: relative;
-  font-weight: 500;
+  margin-bottom: 16px; font-size: 14px; line-height: 1.5; position: relative; font-weight: 500;
 }
 .alert-bar.warn { background: #fffbe6; color: #8a6d00; border: 1px solid #ffe066; }
 .alert-bar.error { background: #fff0f0; color: var(--red); border: 1px solid #ffc9c9; }
@@ -91,27 +123,19 @@ h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 6
   font-size: 18px; cursor: pointer; color: inherit; opacity: 0.5; line-height: 1;
 }
 #alert-icon { margin-right: 6px; }
-
-/* 카드 */
 .card {
-  background: #fff; border-radius: var(--radius); padding: 28px;
+  background: #fff; border-radius: var(--radius); padding: 24px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03);
-  margin-bottom: 20px;
 }
-
-/* 폼 */
 label { display: block; font-size: 13px; font-weight: 600; color: var(--gray-600); margin-bottom: 8px; }
 .field + .field { margin-top: 22px; }
 input[type="text"], textarea {
   width: 100%; padding: 12px 14px; border: 1.5px solid var(--gray-200); border-radius: 10px;
-  font-size: 15px; font-family: inherit; transition: all 0.15s; background: var(--gray-50);
-  color: var(--gray-900);
+  font-size: 15px; font-family: inherit; transition: all 0.15s; background: var(--gray-50); color: var(--gray-900);
 }
 input:focus, textarea:focus { outline: none; border-color: var(--blue); background: #fff; box-shadow: 0 0 0 3px var(--blue-light); }
 textarea { resize: vertical; min-height: 80px; }
 .hint { font-size: 12px; color: var(--gray-400); margin-top: 6px; }
-
-/* 드롭존 */
 .dropzone {
   border: 2px dashed var(--gray-200); border-radius: 10px; padding: 28px;
   text-align: center; cursor: pointer; transition: all 0.2s; background: var(--gray-50);
@@ -120,12 +144,16 @@ textarea { resize: vertical; min-height: 80px; }
 .drop-icon { font-size: 28px; margin-bottom: 8px; }
 .drop-main { color: var(--gray-600); font-size: 14px; font-weight: 500; }
 .drop-sub { color: var(--gray-400); font-size: 12px; margin-top: 4px; }
-.file-list { color: var(--blue); font-weight: 600; font-size: 13px; margin-top: 10px; }
+.file-list { margin-top: 10px; text-align: left; }
+.file-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 10px; margin-top: 4px; background: var(--gray-100); border-radius: 6px; font-size: 13px; color: var(--gray-800);
+}
+.file-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-remove { background: none; border: none; color: var(--gray-400); cursor: pointer; font-size: 16px; padding: 0 4px; line-height: 1; flex-shrink: 0; }
+.file-remove:hover { color: var(--red); }
+.file-count { font-size: 12px; color: var(--blue); font-weight: 600; margin-top: 6px; }
 #file-input { display: none; }
-</style>
-
-<style>
-/* 버튼 */
 .btn-primary {
   display: block; width: 100%; padding: 14px; margin-top: 24px; background: var(--blue);
   color: #fff; border: none; border-radius: 10px; font-size: 16px; font-weight: 600;
@@ -140,44 +168,79 @@ textarea { resize: vertical; min-height: 80px; }
   cursor: pointer; font-family: inherit; transition: all 0.15s;
 }
 .btn-ghost:hover { border-color: var(--gray-400); color: var(--gray-800); }
+</style>
 
-/* 미리보기 */
-.preview-header {
-  display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;
+<style>
+/* 결과 헤더 */
+.result-header {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;
 }
-.preview-header h2 { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
-.preview-actions { display: flex; gap: 8px; }
-.preview-block { margin-bottom: 24px; }
+.result-header h2 { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
+.result-actions { display: flex; gap: 8px; }
+
+/* 2컬럼 */
+.result-columns { display: flex; gap: 20px; align-items: flex-start; }
+.result-col { flex: 1; min-width: 0; }
+.col-label {
+  font-size: 13px; font-weight: 700; display: inline-block;
+  padding: 5px 14px; border-radius: 8px 8px 0 0; margin-bottom: -1px; position: relative; z-index: 1;
+}
+.col-label-blue { color: var(--blue); background: var(--blue-light); }
+.col-label-orange { color: #e67700; background: #fff8e1; }
+
+/* 테이블 */
+.preview-block { margin-bottom: 20px; }
 .preview-block:last-child { margin-bottom: 0; }
 .preview-label {
-  font-size: 13px; font-weight: 700; color: var(--blue); background: var(--blue-light);
-  display: inline-block; padding: 4px 12px; border-radius: 6px; margin-bottom: 10px;
+  font-size: 12px; font-weight: 700; color: var(--blue); background: var(--blue-light);
+  display: inline-block; padding: 3px 10px; border-radius: 5px; margin-bottom: 8px;
+}
+.original-label {
+  font-size: 12px; font-weight: 700; color: #e67700; background: #fff8e1;
+  display: inline-block; padding: 3px 10px; border-radius: 5px; margin-bottom: 8px;
 }
 .preview-table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid var(--gray-200); }
-.preview-table {
-  width: 100%; border-collapse: collapse; font-size: 13px; white-space: nowrap;
-}
+.preview-table { width: 100%; border-collapse: collapse; font-size: 12px; white-space: nowrap; }
 .preview-table th {
   background: var(--gray-100); font-weight: 600; color: var(--gray-600);
-  padding: 10px 14px; text-align: center; border-bottom: 1px solid var(--gray-200);
+  padding: 8px 10px; text-align: center; border-bottom: 1px solid var(--gray-200);
 }
 .preview-table td {
-  padding: 9px 14px; text-align: right; border-bottom: 1px solid var(--gray-100);
-  color: var(--gray-800);
+  padding: 7px 10px; text-align: right; border-bottom: 1px solid var(--gray-100); color: var(--gray-800);
 }
 .preview-table td:first-child { text-align: center; color: var(--gray-600); font-weight: 500; }
 .preview-table tr:last-child td { border-bottom: none; }
-.preview-table tr:hover td { background: var(--blue-light); }
-.preview-more {
-  text-align: center; padding: 10px; font-size: 12px; color: var(--gray-400);
-  cursor: pointer; font-weight: 500;
-}
+.preview-table td.cell-match { background: #e6f9e6 !important; }
+.preview-table td.cell-mismatch { background: #ffe0e0 !important; }
+.preview-table td.cell-highlight { background: #fff3cd !important; outline: 2px solid #f59f00; outline-offset: -2px; }
+.preview-more { text-align: center; padding: 8px; font-size: 11px; color: var(--gray-400); cursor: pointer; font-weight: 500; }
 .preview-more:hover { color: var(--blue); }
+.original-hint { text-align: center; color: var(--gray-400); font-size: 13px; padding: 40px 0; }
+
+/* 매칭 말풍선 */
+.mapping-bubble { margin-bottom: 12px; display: flex; flex-direction: column; align-items: center; }
+.mapping-bubble-inner {
+  background: #fff; border: 1.5px solid var(--blue); border-radius: 14px;
+  padding: 12px 18px; display: flex; align-items: flex-start; gap: 10px;
+  box-shadow: 0 2px 8px rgba(49,130,246,0.1);
+}
+.mapping-icon { font-size: 16px; flex-shrink: 0; margin-top: 2px; }
+.mapping-text { display: flex; flex-direction: column; gap: 6px; }
+.mapping-msg { font-size: 13px; font-weight: 600; color: var(--gray-800); }
+.mapping-body { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.mapping-bubble-arrow {
+  width: 10px; height: 10px; background: #fff; border-right: 1.5px solid var(--blue);
+  border-bottom: 1.5px solid var(--blue); transform: rotate(45deg); margin-top: -6px;
+}
+.mapping-item { display: flex; align-items: center; gap: 4px; font-size: 12px; white-space: nowrap; }
+.mapping-csv { color: var(--gray-500); font-weight: 500; }
+.mapping-arrow { color: var(--gray-400); font-size: 10px; }
+.mapping-display { color: var(--blue); font-weight: 700; }
 </style>
 
 <script>
-let currentFile = null;
-let currentFilename = null;
+let currentFile = null, currentFilename = null, collectedFiles = [];
+let crossCheckData = null, previewData = null;
 
 const zone = document.getElementById('dropzone');
 const input = document.getElementById('file-input');
@@ -189,50 +252,77 @@ zone.addEventListener('dragover', e => { e.preventDefault(); e.stopPropagation()
 zone.addEventListener('dragleave', e => { e.preventDefault(); e.stopPropagation(); zone.classList.remove('dragover'); });
 zone.addEventListener('drop', e => {
   e.preventDefault(); e.stopPropagation(); zone.classList.remove('dragover');
-  const dt = new DataTransfer();
-  Array.from(e.dataTransfer.files).forEach(f => dt.items.add(f));
-  input.files = dt.files;
-  showFiles(input.files);
+  addFiles(e.dataTransfer.files);
 });
-input.addEventListener('change', () => showFiles(input.files));
+input.addEventListener('change', () => { addFiles(input.files); input.value = ''; });
+zone.querySelectorAll(':scope > *:not(#file-list):not([type="file"])').forEach(el => { el.style.pointerEvents = 'none'; });
 
-// 자식 요소가 이벤트 가로채지 않도록
-zone.querySelectorAll('*').forEach(el => { el.style.pointerEvents = 'none'; });
-
-function showFiles(files) {
-  if (!files.length) { fileList.textContent = ''; return; }
-  fileList.textContent = Array.from(files).map(f => f.name).join(', ') + ' (' + files.length + '개)';
+function addFiles(files) {
+  Array.from(files).forEach(f => {
+    if (!collectedFiles.some(cf => cf.name === f.name && cf.size === f.size)) collectedFiles.push(f);
+  });
+  renderFileList();
 }
-
-function showAlert(messages, type) {
-  const el = document.getElementById('alert');
-  const msg = document.getElementById('alert-msg');
-  el.className = 'alert-bar ' + type;
-  msg.innerHTML = messages.join('<br>');
-  el.style.display = 'block';
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+function removeFile(idx) { collectedFiles.splice(idx, 1); renderFileList(); }
+function renderFileList() {
+  fileList.innerHTML = '';
+  if (!collectedFiles.length) return;
+  collectedFiles.forEach((f, i) => {
+    const div = document.createElement('div');
+    div.className = 'file-item';
+    div.innerHTML = '<span>📄 ' + f.name + '</span><button class="file-remove" onclick="event.stopPropagation(); removeFile(' + i + ')">&times;</button>';
+    fileList.appendChild(div);
+  });
+  const c = document.createElement('div'); c.className = 'file-count';
+  c.textContent = '총 ' + collectedFiles.length + '개 파일'; fileList.appendChild(c);
+}
+function showAlert(msgs, type) {
+  const el = document.getElementById('alert'), msg = document.getElementById('alert-msg');
+  el.className = 'alert-bar ' + type; msg.innerHTML = msgs.join('<br>');
+  el.style.display = 'block'; window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 function hideAlert() { document.getElementById('alert').style.display = 'none'; }
-
-function downloadBase64(b64, filename) {
-  const bin = atob(b64);
-  const arr = new Uint8Array(bin.length);
+function downloadBase64(b64, fn) {
+  const bin = atob(b64), arr = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-  const blob = new Blob([arr], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  const blob = new Blob([arr], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fn;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href);
+}
+
+
+// 원본 테이블 렌더링 - preview와 같은 순서로
+function renderOriginal(ccData) {
+  const body = document.getElementById('original-body');
+  body.innerHTML = '';
+  if (!ccData || !ccData.length) {
+    body.innerHTML = '<div class="original-hint">원본 데이터가 없어요</div>'; return;
+  }
+  ccData.forEach((cc, bi) => {
+    const div = document.createElement('div');
+    div.className = 'preview-block';
+    let html = '<div class="original-label">' + cc.metric + ' (' + cc.age + ')</div>';
+    html += '<div class="preview-table-wrap"><table class="preview-table"><thead><tr><th>날짜</th>';
+    cc.apps.forEach(a => { html += '<th>' + a.name + '</th>'; });
+    html += '</tr></thead><tbody>';
+    cc.dates.forEach((d, i) => {
+      html += '<tr><td>' + d + '</td>';
+      cc.apps.forEach((a, ai) => {
+        html += '<td data-cc-block="' + bi + '" data-cc-row="' + i + '" data-cc-col="' + ai + '">' + a.values[i] + '</td>';
+      });
+      html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+    div.innerHTML = html;
+    body.appendChild(div);
   });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = filename;
-  document.body.appendChild(a); a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(a.href);
 }
 
 function renderPreview(preview) {
+  previewData = preview;
   const body = document.getElementById('preview-body');
   body.innerHTML = '';
-  const INITIAL_ROWS = 8;
+  const INITIAL = 8;
   preview.forEach((block, bi) => {
     const div = document.createElement('div');
     div.className = 'preview-block';
@@ -240,41 +330,82 @@ function renderPreview(preview) {
     html += '<div class="preview-table-wrap"><table class="preview-table"><thead><tr>';
     block.headers.forEach(h => { html += '<th>' + h + '</th>'; });
     html += '</tr></thead><tbody>';
-    const total = block.rows.length;
-    const show = Math.min(INITIAL_ROWS, total);
-    block.rows.slice(0, show).forEach(row => {
+    const total = block.rows.length, show = Math.min(INITIAL, total);
+    block.rows.slice(0, show).forEach((row, ri) => {
       html += '<tr>';
-      row.forEach(v => { html += '<td>' + v + '</td>'; });
+      row.forEach((v, ci) => {
+        html += ci === 0 ? '<td>' + v + '</td>'
+          : '<td data-block="' + bi + '" data-row="' + ri + '" data-col="' + (ci-1) + '" data-val="' + v + '">' + v + '</td>';
+      });
       html += '</tr>';
     });
     html += '</tbody></table></div>';
-    if (total > INITIAL_ROWS) {
-      html += '<div class="preview-more" data-block="' + bi + '">+ ' + (total - INITIAL_ROWS) + '행 더 보기</div>';
-    }
-    div.innerHTML = html;
-    body.appendChild(div);
+    if (total > INITIAL) html += '<div class="preview-more" data-block="' + bi + '">+ ' + (total - INITIAL) + '행 더 보기</div>';
+    div.innerHTML = html; body.appendChild(div);
   });
-  // 더보기 클릭
   body.querySelectorAll('.preview-more').forEach(el => {
     el.addEventListener('click', function() {
-      const bi = parseInt(this.dataset.block);
-      const block = preview[bi];
+      const bi = parseInt(this.dataset.block), block = preview[bi];
       const tbody = this.previousElementSibling.querySelector('tbody');
-      block.rows.slice(INITIAL_ROWS).forEach(row => {
+      block.rows.slice(INITIAL).forEach((row, ri) => {
         const tr = document.createElement('tr');
-        row.forEach(v => { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); });
+        row.forEach((v, ci) => {
+          const td = document.createElement('td'); td.textContent = v;
+          if (ci > 0) { td.dataset.block = bi; td.dataset.row = INITIAL + ri; td.dataset.col = ci - 1; td.dataset.val = v; }
+          tr.appendChild(td);
+        });
         tbody.appendChild(tr);
       });
-      this.remove();
+      this.remove(); attachCellHover();
     });
+  });
+  attachCellHover();
+}
+
+function attachCellHover() {
+  // 이벤트 위임: preview-body에 한 번만 등록
+  const body = document.getElementById('preview-body');
+  if (body.dataset.hoverAttached) return;
+  body.dataset.hoverAttached = 'true';
+
+  body.addEventListener('mouseover', function(e) {
+    const td = e.target.closest('td[data-val]');
+    if (!td || !crossCheckData) return;
+    const bi = td.dataset.block, ri = td.dataset.row, ci = td.dataset.col, val = td.dataset.val;
+    const origCell = document.querySelector('#original-body td[data-cc-block="' + bi + '"][data-cc-row="' + ri + '"][data-cc-col="' + ci + '"]');
+    if (!origCell) return;
+    const origVal = origCell.textContent.trim();
+    const isMatch = (val === origVal);
+    td.classList.add(isMatch ? 'cell-match' : 'cell-mismatch');
+    origCell.classList.add('cell-highlight');
+  });
+
+  body.addEventListener('mouseout', function(e) {
+    const td = e.target.closest('td[data-val]');
+    if (!td) return;
+    td.classList.remove('cell-match', 'cell-mismatch');
+    document.querySelectorAll('#original-body td.cell-highlight').forEach(c => c.classList.remove('cell-highlight'));
+  });
+}
+
+function renderMappings(mappings) {
+  const card = document.getElementById('mapping-card'), body = document.getElementById('mapping-body');
+  body.innerHTML = '';
+  if (!mappings || !mappings.length || mappings.every(m => m.csv === m.display)) { card.style.display = 'none'; return; }
+  card.style.display = 'flex';
+  mappings.forEach(m => {
+    if (m.csv === m.display) return;
+    const span = document.createElement('span'); span.className = 'mapping-item';
+    span.innerHTML = '<span class="mapping-csv">' + m.csv + '</span><span class="mapping-arrow">→</span><span class="mapping-display">' + m.display + '</span>';
+    body.appendChild(span);
   });
 }
 
 function resetForm() {
-  document.getElementById('form-card').style.display = 'block';
-  document.getElementById('preview-card').style.display = 'none';
-  hideAlert();
-  currentFile = null; currentFilename = null;
+  document.getElementById('form-container').style.display = 'block';
+  document.getElementById('result-layout').style.display = 'none';
+  hideAlert(); currentFile = null; currentFilename = null;
+  collectedFiles = []; renderFileList();
 }
 
 document.getElementById('download-btn').addEventListener('click', () => {
@@ -285,20 +416,23 @@ document.getElementById('form').addEventListener('submit', async e => {
   e.preventDefault(); hideAlert();
   const btn = document.getElementById('btn');
   const fd = new FormData(e.target);
+  fd.delete('csv_files');
+  collectedFiles.forEach(f => fd.append('csv_files', f));
+  if (!collectedFiles.length) { showAlert(['CSV 파일을 업로드해주세요.'], 'error'); return; }
   btn.disabled = true; btn.textContent = '변환 중...';
   try {
     const res = await fetch('/convert', { method: 'POST', body: fd });
     const data = await res.json();
-    if (!res.ok) {
-      const msgs = data.warnings && data.warnings.length ? data.warnings : [data.error || '오류가 발생했어요'];
-      showAlert(msgs, 'error'); return;
-    }
-    if (data.warnings && data.warnings.length) showAlert(data.warnings, 'warn');
+    if (!res.ok) { showAlert(data.warnings?.length ? data.warnings : [data.error || '오류가 발생했어요'], 'error'); return; }
+    if (data.warnings?.length) showAlert(data.warnings, 'warn');
     currentFile = data.file; currentFilename = data.filename;
+    crossCheckData = data.crossCheck;
     document.getElementById('preview-title').textContent = data.filename.replace('.xlsx', '');
+    renderOriginal(data.crossCheck);
     renderPreview(data.preview);
-    document.getElementById('form-card').style.display = 'none';
-    document.getElementById('preview-card').style.display = 'block';
+    renderMappings(data.appMappings);
+    document.getElementById('form-container').style.display = 'none';
+    document.getElementById('result-layout').style.display = 'block';
   } catch { showAlert(['네트워크 오류가 발생했어요'], 'error'); }
   finally { btn.disabled = false; btn.textContent = '변환하기'; }
 });

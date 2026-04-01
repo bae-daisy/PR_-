@@ -116,9 +116,38 @@ def parse_csv_content(content):
     return header_lines, col_headers, data_rows
 
 
-def convert(csv_files, media_name):
-    """CSV 파일들을 분석하여 자동으로 엑셀 생성. 반환: (BytesIO, warnings)"""
+def parse_app_names_from_request(request_text):
+    """요청사항에서 앱 이름 목록을 순서대로 추출"""
+    if not request_text:
+        return []
+    # "앱:" 또는 "앱 :" 뒤의 내용에서 추출
+    m = re.search(r"앱\s*[:：]\s*(.+)", request_text)
+    if m:
+        line = m.group(1).strip()
+        apps = [a.strip() for a in re.split(r"[,，/]", line) if a.strip()]
+        return apps
+    return []
+
+
+def match_app_name(csv_name, requested_apps):
+    """CSV 앱 이름을 요청사항의 앱 이름과 매칭. 매칭되면 (요청 이름, 순서) 반환"""
+    csv_lower = csv_name.lower().replace(" ", "")
+    for i, req in enumerate(requested_apps):
+        req_lower = req.lower().replace(" ", "")
+        # 포함 관계로 매칭 (양방향)
+        if req_lower in csv_lower or csv_lower in req_lower:
+            return req, i
+    # 매칭 안 되면 원본 이름 그대로
+    return csv_name, None
+
+
+def convert(csv_files, media_name, request_text=""):
+    """CSV 파일들을 분석하여 자동으로 엑셀 생성. 반환: (BytesIO, warnings, preview, cross_check, app_mappings)"""
     warnings = []
+    requested_apps = parse_app_names_from_request(request_text)
+    cross_check = []  # 교차 확인 데이터
+    app_mappings = []  # CSV앱→표시앱 매칭 정보
+
     # 1) 모든 CSV 파싱
     parsed = []
     for filename, content in csv_files:
@@ -135,36 +164,63 @@ def convert(csv_files, media_name):
 
         # 날짜/앱 컬럼 추출
         if first_col == "패키지명":
-            # 단일 앱 형태: 패키지명, 날짜, 값
             dates = [row[1] for row in data_rows]
-            app_name = metric  # 단일 값이므로 지표명 사용
             vals = []
             for row in data_rows:
                 raw = row[2].replace(",", "") if len(row) > 2 else ""
                 vals.append(int(raw) if raw and raw != "-" else None)
-            app_columns = [(media_name, vals)]
+            # 패키지명 형태에서도 요청사항 앱 매칭 시도
+            if requested_apps:
+                # 헤더에서 앱 이름 힌트 찾기
+                pkg_name = data_rows[0][0] if data_rows else ""
+                display_name, order = match_app_name(pkg_name, requested_apps)
+                if order is None:
+                    display_name = requested_apps[0] if len(requested_apps) == 1 else media_name
+                app_mappings.append({"csv": pkg_name or media_name, "display": display_name})
+            else:
+                display_name = media_name
+            app_columns = [(display_name, vals)]
+            raw_app_columns = [(pkg_name if data_rows else media_name, vals)]
         else:
-            # 비교 분석 형태: 날짜, 앱1, 앱2, ...
             dates = [row[0] for row in data_rows]
             app_columns = []
+            raw_app_columns = []
             for i in range(1, len(col_headers)):
-                name = col_headers[i]
-                short = name.split("–")[0].split("-")[0].strip()
+                csv_name = col_headers[i]
+                short = csv_name.split("–")[0].split("-")[0].strip()
                 vals = []
                 for row in data_rows:
                     raw = row[i].replace(",", "") if i < len(row) else ""
                     vals.append(int(raw) if raw and raw != "-" and raw else None)
-                app_columns.append((short, vals))
+                # 요청사항 앱 이름 매칭
+                display_name, order = match_app_name(short, requested_apps)
+                app_columns.append((display_name, vals, order, short))
+                raw_app_columns.append((short, vals))
+                app_mappings.append({"csv": short, "display": display_name})
+
+            # 요청사항에 앱 순서가 있으면 그 순서대로 정렬
+            if requested_apps and any(a[2] is not None for a in app_columns):
+                app_columns.sort(key=lambda a: a[2] if a[2] is not None else 999)
+
+        # app_columns에서 order, original 제거
+        clean_apps = [(a[0], a[1]) for a in app_columns] if first_col != "패키지명" else app_columns
 
         parsed.append({
             "metric": metric,
             "age": age or "전체",
             "dates": dates,
-            "apps": app_columns,
+            "apps": clean_apps,
+            "_cc": {
+                "filename": filename,
+                "metric": metric,
+                "age": age or "전체",
+                "raw_apps": [(a[0], a[1]) for a in raw_app_columns] if first_col != "패키지명" else raw_app_columns,
+                "dates": dates,
+            },
         })
 
     if not parsed:
-        return None, warnings, []
+        return None, warnings, [], [], []
 
     # 2) 그룹핑: (metric, age) 조합별로 정렬
     age_order = ["전체", "10대 이하", "20대", "30대", "40대", "50대", "60대 이상"]
@@ -178,6 +234,8 @@ def convert(csv_files, media_name):
         return (mi, ai)
 
     parsed.sort(key=sort_key)
+    # cross_check도 같은 순서로
+    cross_check = [item["_cc"] for item in parsed]
 
     # 3) 엑셀 생성
     wb = Workbook()
@@ -206,13 +264,16 @@ def convert(csv_files, media_name):
         # 7행: 날짜 + 앱 헤더
         ws.cell(row=7, column=col_cursor).value = "날짜"
         apply_style(ws.cell(row=7, column=col_cursor), is_header=True)
-        ws.column_dimensions[get_column_letter(col_cursor)].width = 23.86
+        # 날짜 열 너비: 내용 길이에 맞게 자동 조정
+        max_date_len = max((len(format_date_label(d, period_type)) for d in dates), default=6)
+        ws.column_dimensions[get_column_letter(col_cursor)].width = max(max_date_len * 1.3 + 2, 12)
 
         for idx, (app_name, _) in enumerate(apps):
             vc = col_cursor + 1 + idx
             ws.cell(row=7, column=vc).value = app_name
             apply_style(ws.cell(row=7, column=vc), is_header=True)
-            ws.column_dimensions[get_column_letter(vc)].width = 15
+            app_name_len = max(len(app_name), 7)
+            ws.column_dimensions[get_column_letter(vc)].width = max(app_name_len * 1.3 + 2, 13)
 
         # 8행~: 데이터
         for i, d in enumerate(dates):
@@ -258,7 +319,15 @@ def convert(csv_files, media_name):
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
-    return buf, warnings, preview
+    # 중복 제거
+    seen = set()
+    unique_mappings = []
+    for m in app_mappings:
+        key = m["csv"] + "→" + m["display"]
+        if key not in seen:
+            seen.add(key)
+            unique_mappings.append(m)
+    return buf, warnings, preview, cross_check, unique_mappings
 
 
 # ── 라우트 ──
@@ -273,6 +342,8 @@ def api_convert():
     if not media_name:
         return jsonify({"error": "매체명을 입력해주세요."}), 400
 
+    request_text = request.form.get("request_text", "").strip()
+
     files = request.files.getlist("csv_files")
     if not files or not files[0].filename:
         return jsonify({"error": "CSV 파일을 업로드해주세요."}), 400
@@ -282,18 +353,39 @@ def api_convert():
         content = f.read().decode("utf-8-sig")
         csv_files.append((f.filename, content))
 
-    buf, warnings, preview = convert(csv_files, media_name)
+    buf, warnings, preview, cross_check, app_mappings = convert(csv_files, media_name, request_text)
     if not buf:
         error_msg = "변환에 실패했습니다. CSV 형식을 확인해주세요."
         return jsonify({"error": error_msg, "warnings": warnings}), 400
 
     filename = f"MI-{media_name}_요청_데이터.xlsx"
     file_b64 = base64.b64encode(buf.read()).decode("ascii")
+
+    # 교차 확인 데이터 직렬화
+    cross_check_out = []
+    for cc in cross_check:
+        apps_data = []
+        for app_name, vals in cc["raw_apps"]:
+            apps_data.append({
+                "name": app_name,
+                "values": [f"{v:,}" if v is not None else "-" for v in vals]
+            })
+        period_type = detect_period_type(cc["dates"])
+        cross_check_out.append({
+            "filename": cc["filename"],
+            "metric": cc["metric"],
+            "age": cc["age"],
+            "dates": [format_date_label(d, period_type) for d in cc["dates"]],
+            "apps": apps_data,
+        })
+
     return jsonify({
         "filename": filename,
         "file": file_b64,
         "warnings": warnings,
         "preview": preview,
+        "crossCheck": cross_check_out,
+        "appMappings": app_mappings,
     })
 
 
