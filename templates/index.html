@@ -79,7 +79,12 @@ h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 6
       </div>
       <div class="guide-step">
         <div class="step-num">2</div>
-        <div class="step-text">요청사항에 기자 문의 원문을 붙여넣기<br><span class="step-hint">앱: 넷플릭스, 티빙 처럼 적으면 해당 앱만 추출 + 순서 유지돼요</span></div>
+        <div class="step-text">요청사항에 기자 문의 원문을 붙여넣기<br><span class="step-hint">앱: 넷플릭스, 티빙 처럼 적으면 해당 앱만 추출 + 순서 유지돼요</span>
+          <div class="guide-example">
+            <div class="guide-example-title">원문 예시</div>
+            <div class="guide-example-text">지디넷코리아 [이름] 기자 문의사항 전달드립니다.<br>[문의내용] WAU, DAU<br>앱: TVING<br>분석: AOS+iOS<br>1. WAU 기간: 2026.02.23~2026.03.22<br>2. DAU 기간: 2026.02.26~2026.03.24</div>
+          </div>
+        </div>
       </div>
       <div class="guide-step">
         <div class="step-num">3</div>
@@ -198,6 +203,12 @@ textarea { resize: vertical; min-height: 80px; }
 }
 .step-text { font-size: 14px; color: var(--gray-800); line-height: 1.5; }
 .step-hint { font-size: 12px; color: var(--gray-400); }
+.guide-example {
+  margin-top: 10px; padding: 12px 14px; background: var(--gray-50);
+  border-radius: 8px; border: 1px solid var(--gray-200);
+}
+.guide-example-title { font-size: 11px; font-weight: 700; color: var(--blue); margin-bottom: 6px; }
+.guide-example-text { font-size: 12px; color: var(--gray-600); line-height: 1.7; }
 .guide-auto { padding-top: 16px; border-top: 1px solid var(--gray-100); }
 .guide-auto-title { font-size: 12px; font-weight: 600; color: var(--gray-500); margin-bottom: 8px; }
 .guide-tags { display: flex; flex-wrap: wrap; gap: 6px; }
