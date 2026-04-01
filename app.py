@@ -226,6 +226,12 @@ def convert(csv_files, media_name, request_text=""):
             # 요청사항에 앱 순서가 있으면 그 순서대로 정렬
             if requested_apps and any(a[2] is not None for a in app_columns):
                 app_columns.sort(key=lambda a: a[2] if a[2] is not None else 999)
+                # 요청사항에 없는 앱 제거
+                filtered = [a for a in app_columns if a[2] is not None]
+                removed = [a[3] for a in app_columns if a[2] is None]
+                if removed:
+                    warnings.append(f"요청에 없는 앱 제외: {', '.join(removed)}")
+                app_columns = filtered if filtered else app_columns
 
         # app_columns에서 order, original 제거
         clean_apps = [(a[0], a[1]) for a in app_columns] if first_col != "패키지명" else app_columns
