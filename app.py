@@ -7,15 +7,40 @@ PR 데이터 요청 처리 웹앱
 import csv
 import re
 import io
+import os
 import base64
 from datetime import date
 from flask import Flask, request, render_template, send_file, jsonify, make_response
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill, Color
 from openpyxl.utils import get_column_letter
+from markupsafe import escape
 
 app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB 제한
+
+ALLOWED_EXTENSIONS = {'.csv'}
+MAX_FILES = 20
+MAX_FILENAME_LEN = 200
+
+
+@app.after_request
+def add_security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    return response
+
+
+def is_allowed_file(filename):
+    return os.path.splitext(filename)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def sanitize_input(text, max_len=5000):
+    if not text:
+        return ""
+    return str(text)[:max_len].strip()
 
 # ── 스타일 ──
 FONT_STYLE = Font(name="맑은 고딕", size=12)
@@ -338,18 +363,25 @@ def index():
 
 @app.route("/convert", methods=["POST"])
 def api_convert():
-    media_name = request.form.get("media_name", "").strip()
+    media_name = sanitize_input(request.form.get("media_name", ""), max_len=100)
     if not media_name:
         return jsonify({"error": "매체명을 입력해주세요."}), 400
 
-    request_text = request.form.get("request_text", "").strip()
+    request_text = sanitize_input(request.form.get("request_text", ""))
 
     files = request.files.getlist("csv_files")
     if not files or not files[0].filename:
         return jsonify({"error": "CSV 파일을 업로드해주세요."}), 400
 
+    if len(files) > MAX_FILES:
+        return jsonify({"error": f"파일은 최대 {MAX_FILES}개까지 업로드할 수 있어요."}), 400
+
     csv_files = []
     for f in files:
+        if not f.filename or not is_allowed_file(f.filename):
+            return jsonify({"error": f"'{f.filename}' — CSV 파일만 업로드할 수 있어요."}), 400
+        if len(f.filename) > MAX_FILENAME_LEN:
+            return jsonify({"error": "파일명이 너무 길어요."}), 400
         content = f.read().decode("utf-8-sig")
         csv_files.append((f.filename, content))
 
@@ -390,4 +422,4 @@ def api_convert():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    app.run(debug=os.environ.get("FLASK_DEBUG", "0") == "1", host="0.0.0.0", port=5000)
