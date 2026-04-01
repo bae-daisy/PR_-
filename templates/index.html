@@ -68,10 +68,13 @@ h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 6
       <button type="submit" class="btn-primary" id="btn">변환하기</button>
     </form>
   </div>
+</div>
 
-  <!-- 사용 가이드 -->
-  <div class="guide">
-    <div class="guide-title">💡 사용 가이드</div>
+<!-- 플로팅 가이드 전구 -->
+<div class="guide-float" id="guide-float">
+  <div class="guide-bulb">💡</div>
+  <div class="guide-popup">
+    <div class="guide-title">사용 가이드</div>
     <div class="guide-steps">
       <div class="guide-step">
         <div class="step-num">1</div>
@@ -192,28 +195,51 @@ textarea { resize: vertical; min-height: 80px; }
 .file-count { font-size: 12px; color: var(--blue); font-weight: 600; margin-top: 6px; }
 #file-input { display: none; }
 
-/* 사용 가이드 */
-.guide { margin-top: 24px; padding: 24px; background: #fff; border-radius: var(--radius); box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+/* 플로팅 가이드 전구 */
+.guide-float {
+  position: fixed; bottom: 28px; right: 28px; z-index: 900;
+}
+.guide-bulb {
+  width: 52px; height: 52px; border-radius: 50%; background: #fff;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.12); display: flex; align-items: center;
+  justify-content: center; font-size: 26px; cursor: pointer;
+  animation: bulbGlow 2s ease-in-out infinite;
+}
+@keyframes bulbGlow {
+  0%, 100% { box-shadow: 0 2px 12px rgba(0,0,0,0.12); }
+  50% { box-shadow: 0 2px 20px rgba(249,200,40,0.5), 0 0 40px rgba(249,200,40,0.2); }
+}
+.guide-popup {
+  position: absolute; bottom: 62px; right: 0; width: 360px;
+  background: #fff; border-radius: var(--radius); padding: 24px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.12); border: 1px solid var(--gray-200);
+  opacity: 0; visibility: hidden; transform: translateY(10px) scale(0.95);
+  transition: all 0.25s ease; pointer-events: none;
+}
+.guide-float:hover .guide-popup {
+  opacity: 1; visibility: visible; transform: translateY(0) scale(1); pointer-events: auto;
+}
+.guide-float:hover .guide-bulb { animation: none; box-shadow: 0 2px 20px rgba(249,200,40,0.5); }
 .guide-title { font-size: 15px; font-weight: 700; color: var(--gray-800); margin-bottom: 16px; }
 .guide-steps { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
 .guide-step { display: flex; align-items: flex-start; gap: 12px; }
 .step-num {
-  width: 24px; height: 24px; border-radius: 50%; background: var(--blue); color: #fff;
-  font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 22px; height: 22px; border-radius: 50%; background: var(--blue); color: #fff;
+  font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
-.step-text { font-size: 14px; color: var(--gray-800); line-height: 1.5; }
-.step-hint { font-size: 12px; color: var(--gray-400); }
+.step-text { font-size: 13px; color: var(--gray-800); line-height: 1.5; }
+.step-hint { font-size: 11px; color: var(--gray-400); }
 .guide-example {
-  margin-top: 10px; padding: 12px 14px; background: var(--gray-50);
+  margin-top: 8px; padding: 10px 12px; background: var(--gray-50);
   border-radius: 8px; border: 1px solid var(--gray-200);
 }
-.guide-example-title { font-size: 11px; font-weight: 700; color: var(--blue); margin-bottom: 6px; }
-.guide-example-text { font-size: 12px; color: var(--gray-600); line-height: 1.7; }
-.guide-auto { padding-top: 16px; border-top: 1px solid var(--gray-100); }
-.guide-auto-title { font-size: 12px; font-weight: 600; color: var(--gray-500); margin-bottom: 8px; }
-.guide-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.guide-example-title { font-size: 10px; font-weight: 700; color: var(--blue); margin-bottom: 4px; }
+.guide-example-text { font-size: 11px; color: var(--gray-600); line-height: 1.7; }
+.guide-auto { padding-top: 14px; border-top: 1px solid var(--gray-100); }
+.guide-auto-title { font-size: 11px; font-weight: 600; color: var(--gray-500); margin-bottom: 8px; }
+.guide-tags { display: flex; flex-wrap: wrap; gap: 5px; }
 .guide-tag {
-  font-size: 11px; padding: 4px 10px; border-radius: 20px;
+  font-size: 10px; padding: 3px 8px; border-radius: 20px;
   background: var(--gray-100); color: var(--gray-600); font-weight: 500;
 }
 .btn-primary {
