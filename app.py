@@ -95,12 +95,14 @@ def detect_metric(header_lines):
 def detect_platform(header_lines):
     """CSV 헤더에서 분석 플랫폼(AOS+iOS, AOS, iOS) 감지"""
     text = " ".join(header_lines)
-    if "AOS+iOS" in text or "AOS + iOS" in text:
+    if "AOS+iOS" in text or "AOS + iOS" in text or "Android+iOS" in text or "Android + iOS" in text:
         return "AOS+iOS"
-    if "AOS" in text and "iOS" not in text:
-        return "AOS"
-    if "iOS" in text and "AOS" not in text:
-        return "iOS"
+    if re.search(r'\bAOS\b', text) or re.search(r'\bAndroid\b', text):
+        if "iOS" not in text:
+            return "AOS"
+    if "iOS" in text:
+        if "AOS" not in text and "Android" not in text:
+            return "iOS"
     return None
 
 
@@ -133,23 +135,36 @@ def parse_csv_content(content):
     lines = content.strip().split("\n")
     header_lines, col_headers, data_rows = [], None, []
     data_started = False
+    use_tab = False
     for line in lines:
         stripped = line.strip().strip('"')
         if not data_started:
             row = list(csv.reader([line]))[0]
-            if not row or not row[0].strip():
+            # 탭 구분 파일 대응: 셀이 1개인데 탭이 있으면 탭 구분
+            if len(row) == 1 and '\t' in line:
+                row = line.split('\t')
+                use_tab = True
+            clean_row = [c.strip().strip('"') for c in row]
+            first_valid = next((c for c in clean_row if c), "")
+            if not first_valid:
                 header_lines.append(stripped)
                 continue
-            first = row[0].strip().strip('"')
-            if first in ("패키지명", "날짜"):
+            if first_valid in ("패키지명", "날짜"):
                 data_started = True
-                col_headers = [c.strip().strip('"') for c in row]
+                start_idx = next(i for i, c in enumerate(clean_row) if c)
+                col_headers = clean_row[start_idx:]
                 continue
             header_lines.append(stripped)
         else:
-            row = list(csv.reader([line]))[0]
-            if row and len(row) >= 2:
-                data_rows.append([c.strip().strip('"') for c in row])
+            if use_tab:
+                row = line.split('\t')
+            else:
+                row = list(csv.reader([line]))[0]
+            clean_row = [c.strip().strip('"') for c in row]
+            start_idx = next((i for i, c in enumerate(clean_row) if c), 0)
+            trimmed = clean_row[start_idx:]
+            if trimmed and len(trimmed) >= 2:
+                data_rows.append(trimmed)
     return header_lines, col_headers, data_rows
 
 
