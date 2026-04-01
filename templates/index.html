@@ -301,7 +301,7 @@ function renderOriginal(ccData) {
   ccData.forEach((cc, bi) => {
     const div = document.createElement('div');
     div.className = 'preview-block';
-    let html = '<div class="original-label">' + cc.metric + ' (' + cc.age + ')</div>';
+    let html = '<div class="original-label">' + cc.metric + ' (' + cc.age + ')' + (cc.platform ? ' / ' + cc.platform : '') + '</div>';
     html += '<div class="preview-table-wrap"><table class="preview-table"><thead><tr><th>날짜</th>';
     cc.apps.forEach(a => { html += '<th>' + a.name + '</th>'; });
     html += '</tr></thead><tbody>';

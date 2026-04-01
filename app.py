@@ -92,6 +92,18 @@ def detect_metric(header_lines):
     return f"{prefixes[p]} {label}"
 
 
+def detect_platform(header_lines):
+    """CSV 헤더에서 분석 플랫폼(AOS+iOS, AOS, iOS) 감지"""
+    text = " ".join(header_lines)
+    if "AOS+iOS" in text or "AOS + iOS" in text:
+        return "AOS+iOS"
+    if "AOS" in text and "iOS" not in text:
+        return "AOS"
+    if "iOS" in text and "AOS" not in text:
+        return "iOS"
+    return None
+
+
 def detect_age_group(header_lines):
     text = " ".join(header_lines)
     m = re.search(r"연령:\s*(.+?)\)", text)
@@ -185,6 +197,7 @@ def convert(csv_files, media_name, request_text=""):
             continue
         metric = detect_metric(header_lines)
         age = detect_age_group(header_lines)
+        platform = detect_platform(header_lines)
         first_col = col_headers[0]
 
         # 날짜/앱 컬럼 추출
@@ -239,12 +252,14 @@ def convert(csv_files, media_name, request_text=""):
         parsed.append({
             "metric": metric,
             "age": age or "전체",
+            "platform": platform,
             "dates": dates,
             "apps": clean_apps,
             "_cc": {
                 "filename": filename,
                 "metric": metric,
                 "age": age or "전체",
+                "platform": platform,
                 "raw_apps": [(a[0], a[1]) for a in raw_app_columns] if first_col != "패키지명" else raw_app_columns,
                 "dates": dates,
             },
@@ -275,17 +290,27 @@ def convert(csv_files, media_name, request_text=""):
 
     col_cursor = 2
     has_ages = len(set(p["age"] for p in parsed)) > 1
+    has_platforms = len(set(p.get("platform") for p in parsed if p.get("platform"))) > 0
+
+    def make_label(metric, age, platform):
+        parts = [metric]
+        if has_ages:
+            parts[0] = f"{metric} ({age})"
+        if platform:
+            parts.append(platform)
+        return " / ".join(parts) if len(parts) > 1 else parts[0]
 
     for item in parsed:
         dates = item["dates"]
         apps = item["apps"]
         metric = item["metric"]
         age = item["age"]
+        platform = item.get("platform")
         period_type = detect_period_type(dates)
         block_width = 1 + len(apps)
 
         # 지표 라벨
-        label = f"{metric} ({age})" if has_ages else metric
+        label = make_label(metric, age, platform)
 
         # 6행: 지표 헤더
         for c in range(block_width):
@@ -335,8 +360,9 @@ def convert(csv_files, media_name, request_text=""):
         apps = item["apps"]
         metric = item["metric"]
         age = item["age"]
+        platform = item.get("platform")
         period_type = detect_period_type(dates)
-        label = f"{metric} ({age})" if has_ages else metric
+        label = make_label(metric, age, platform)
         headers = ["날짜"] + [a[0] for a in apps]
         rows = []
         for i, d in enumerate(dates):
@@ -413,6 +439,7 @@ def api_convert():
             "filename": cc["filename"],
             "metric": cc["metric"],
             "age": cc["age"],
+            "platform": cc.get("platform"),
             "dates": [format_date_label(d, period_type) for d in cc["dates"]],
             "apps": apps_data,
         })
