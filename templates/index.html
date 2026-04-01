@@ -68,6 +68,38 @@ h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 6
       <button type="submit" class="btn-primary" id="btn">변환하기</button>
     </form>
   </div>
+
+  <!-- 사용 가이드 -->
+  <div class="guide">
+    <div class="guide-title">💡 사용 가이드</div>
+    <div class="guide-steps">
+      <div class="guide-step">
+        <div class="step-num">1</div>
+        <div class="step-text">매체명 입력 (예: 전자신문, 디지털데일리)</div>
+      </div>
+      <div class="guide-step">
+        <div class="step-num">2</div>
+        <div class="step-text">요청사항에 기자 문의 원문을 붙여넣기<br><span class="step-hint">앱: 넷플릭스, 티빙 처럼 적으면 해당 앱만 추출 + 순서 유지돼요</span></div>
+      </div>
+      <div class="guide-step">
+        <div class="step-num">3</div>
+        <div class="step-text">모바일인덱스에서 받은 CSV 파일 업로드<br><span class="step-hint">여러 개 가능, 하나씩 넣어도 누적돼요</span></div>
+      </div>
+      <div class="guide-step">
+        <div class="step-num">4</div>
+        <div class="step-text">변환 결과를 원본과 비교 후 다운로드</div>
+      </div>
+    </div>
+    <div class="guide-auto">
+      <div class="guide-auto-title">자동으로 감지되는 것들</div>
+      <div class="guide-tags">
+        <span class="guide-tag">지표 (MAU/WAU/DAU/신규설치)</span>
+        <span class="guide-tag">연령대</span>
+        <span class="guide-tag">플랫폼 (AOS+iOS/AOS/iOS)</span>
+        <span class="guide-tag">기간 유형 (월간/주간/일간)</span>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- 결과: 2컬럼 나란히 -->
@@ -154,6 +186,25 @@ textarea { resize: vertical; min-height: 80px; }
 .file-remove:hover { color: var(--red); }
 .file-count { font-size: 12px; color: var(--blue); font-weight: 600; margin-top: 6px; }
 #file-input { display: none; }
+
+/* 사용 가이드 */
+.guide { margin-top: 24px; padding: 24px; background: #fff; border-radius: var(--radius); box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+.guide-title { font-size: 15px; font-weight: 700; color: var(--gray-800); margin-bottom: 16px; }
+.guide-steps { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+.guide-step { display: flex; align-items: flex-start; gap: 12px; }
+.step-num {
+  width: 24px; height: 24px; border-radius: 50%; background: var(--blue); color: #fff;
+  font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.step-text { font-size: 14px; color: var(--gray-800); line-height: 1.5; }
+.step-hint { font-size: 12px; color: var(--gray-400); }
+.guide-auto { padding-top: 16px; border-top: 1px solid var(--gray-100); }
+.guide-auto-title { font-size: 12px; font-weight: 600; color: var(--gray-500); margin-bottom: 8px; }
+.guide-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.guide-tag {
+  font-size: 11px; padding: 4px 10px; border-radius: 20px;
+  background: var(--gray-100); color: var(--gray-600); font-weight: 500;
+}
 .btn-primary {
   display: block; width: 100%; padding: 14px; margin-top: 24px; background: var(--blue);
   color: #fff; border: none; border-radius: 10px; font-size: 16px; font-weight: 600;
