@@ -95,14 +95,14 @@ def detect_metric(header_lines):
 def detect_platform(header_lines):
     """CSV 헤더에서 분석 플랫폼(AOS+iOS, AOS, iOS) 감지"""
     text = " ".join(header_lines)
-    if "AOS+iOS" in text or "AOS + iOS" in text or "Android+iOS" in text or "Android + iOS" in text:
+    has_android = bool(re.search(r'(AOS|Android)', text, re.IGNORECASE))
+    has_ios = bool(re.search(r'iOS', text))
+    if has_android and has_ios:
         return "AOS+iOS"
-    if re.search(r'\bAOS\b', text) or re.search(r'\bAndroid\b', text):
-        if "iOS" not in text:
-            return "AOS"
-    if "iOS" in text:
-        if "AOS" not in text and "Android" not in text:
-            return "iOS"
+    if has_android:
+        return "AOS"
+    if has_ios:
+        return "iOS"
     return None
 
 
